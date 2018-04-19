@@ -10,7 +10,7 @@
 package com.tomitribe.swagger2markup.extensions;
 
 import io.github.swagger2markup.spi.DefinitionsDocumentExtension;
-import io.swagger.models.Model;
+import io.swagger.v3.oas.models.media.Schema;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
@@ -26,7 +26,7 @@ public class SeeAlsoDefinitionsDocumentExtension extends DefinitionsDocumentExte
     @Override
     public void apply(final Context context) {
         if (Position.DEFINITION_AFTER.equals(context.getPosition())) {
-            final Map<String, Model> definitions = globalContext.getSwagger().getDefinitions();
+            final Map<String, Schema> definitions = globalContext.getSwagger().getComponents().getSchemas();
 
             if (context.getDefinitionName().isPresent()) {
                 final String entity = parseActualEntity(context.getDefinitionName().get());

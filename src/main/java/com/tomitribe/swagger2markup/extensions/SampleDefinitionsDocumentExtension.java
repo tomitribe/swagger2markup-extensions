@@ -14,22 +14,23 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.swagger2markup.internal.resolver.DefinitionDocumentResolverFromDefinition;
 import io.github.swagger2markup.model.PathOperation;
 import io.github.swagger2markup.spi.DefinitionsDocumentExtension;
-import io.swagger.models.Operation;
-import io.swagger.models.Path;
-import io.swagger.models.RefModel;
-import io.swagger.models.Response;
-import io.swagger.models.parameters.BodyParameter;
-import io.swagger.models.properties.RefProperty;
 import io.swagger.util.Json;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.Paths;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.parameters.RequestBody;
+import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.responses.ApiResponses;
 
 import java.util.Collection;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 import static io.github.swagger2markup.internal.utils.ExamplesUtil.generateRequestExampleMap;
 import static io.github.swagger2markup.internal.utils.ExamplesUtil.generateResponseExampleMap;
+import static io.github.swagger2markup.internal.utils.RefUtils.computeSimpleRef;
 
 public class SampleDefinitionsDocumentExtension extends DefinitionsDocumentExtension {
     @Override
@@ -51,26 +52,23 @@ public class SampleDefinitionsDocumentExtension extends DefinitionsDocumentExten
     }
 
     private Optional<String> findSampleInRequests(final Context context, final String entity) {
-        final Map<String, Path> paths = this.globalContext.getSwagger().getPaths();
+        final Paths paths = this.globalContext.getSwagger().getPaths();
 
-        final Optional<BodyParameter> requestSample =
+        final Optional<RequestBody> requestSample =
                 paths.values()
                      .stream()
-                     .map(Path::getOperations)
+                     .map(PathItem::readOperations)
                      .flatMap(Collection::stream)
-                     .map(Operation::getParameters)
-                     .flatMap(Collection::stream)
-                     .filter(parameter -> parameter instanceof BodyParameter)
-                     .map(parameter -> (BodyParameter) parameter)
-                     .filter(bodyParameter -> bodyParameter.getSchema() != null)
-                     .filter(bodyParameter -> bodyParameter.getSchema() instanceof RefModel)
-                     .filter(bodyParameter -> ((RefModel) bodyParameter.getSchema()).getSimpleRef().equals(entity))
+                     .map(Operation::getRequestBody)
+                     .filter(Objects::nonNull)
+                     .filter(bodyParameter -> bodyParameter.get$ref() != null)
+                     .filter(bodyParameter -> computeSimpleRef(bodyParameter.get$ref()).equals(entity))
                      .findFirst();
 
         return requestSample
-                .map(bodyParameter -> new PathOperation(null, null, new Operation().parameter(bodyParameter)))
+                .map(bodyParameter -> new PathOperation(null, null, new Operation().requestBody(bodyParameter)))
                 .map(operation -> generateRequestExampleMap(true, operation,
-                                                            globalContext.getSwagger().getDefinitions(),
+                                                            globalContext.getSwagger().getComponents().getSchemas(),
                                                             new DefinitionDocumentResolverFromDefinition(globalContext),
                                                             context.getMarkupDocBuilder()))
                 .flatMap(samples -> samples.values().stream().filter(Objects::nonNull).findFirst())
@@ -78,25 +76,30 @@ public class SampleDefinitionsDocumentExtension extends DefinitionsDocumentExten
     }
 
     private Optional<String> findSampleInResponses(final Context context, final String entity) {
-        final Map<String, Path> paths = this.globalContext.getSwagger().getPaths();
+        final Paths paths = this.globalContext.getSwagger().getPaths();
 
-        final Optional<Response> responseSample =
+        final Optional<ApiResponse> responseSample =
                 paths.values()
                      .stream()
-                     .map(Path::getOperations)
+                     .map(PathItem::readOperations)
                      .flatMap(Collection::stream)
                      .map(Operation::getResponses)
-                     .map(Map::values)
-                     .flatMap(Collection::stream)
-                     .filter(response -> response.getSchema() != null)
-                     .filter(response -> response.getSchema().getType().equals("ref"))
-                     .filter(response -> ((RefProperty) response.getSchema()).getSimpleRef().equals(entity))
+                     .flatMap(apiResponses -> apiResponses.values().stream())
+                     .filter(apiResponse -> Optional.ofNullable(apiResponse.getContent())
+                                                    .map(Content::values)
+                                                    .map(Collection::stream)
+                                                    .flatMap(Stream::findFirst)
+                                                    .filter(mediaType -> mediaType.getSchema().get$ref() != null)
+                                                    .filter(mediaType -> computeSimpleRef(
+                                                            mediaType.getSchema().get$ref()).equals(entity))
+                                                    .isPresent())
                      .findFirst();
 
         return responseSample
-                .map(response -> new PathOperation(null, null, new Operation().response(0, response)))
+                .map(response -> new PathOperation(null, null,
+                                                   new Operation().responses(new ApiResponses()._default(response))))
                 .map(operation -> generateResponseExampleMap(true, operation,
-                                                             globalContext.getSwagger().getDefinitions(),
+                                                             globalContext.getSwagger().getComponents().getSchemas(),
                                                              new DefinitionDocumentResolverFromDefinition(
                                                                      globalContext),
                                                              context.getMarkupDocBuilder()))

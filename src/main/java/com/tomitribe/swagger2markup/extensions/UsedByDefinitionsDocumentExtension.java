@@ -9,16 +9,20 @@
  */
 package com.tomitribe.swagger2markup.extensions;
 
+import io.github.swagger2markup.internal.utils.RefUtils;
 import io.github.swagger2markup.spi.DefinitionsDocumentExtension;
-import io.swagger.models.Operation;
-import io.swagger.models.Path;
-import io.swagger.models.RefModel;
-import io.swagger.models.parameters.BodyParameter;
-import io.swagger.models.properties.RefProperty;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.Paths;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.parameters.RequestBody;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
 
@@ -28,12 +32,12 @@ public class UsedByDefinitionsDocumentExtension extends DefinitionsDocumentExten
         if (Position.DEFINITION_AFTER.equals(context.getPosition())) {
             if (context.getDefinitionName().isPresent()) {
                 final String entity = context.getDefinitionName().get();
-                final Map<String, Path> paths = this.globalContext.getSwagger().getPaths();
+                final Paths paths = this.globalContext.getSwagger().getPaths();
 
                 final List<Operation> usedBy =
                         paths.values()
                              .stream()
-                             .map(Path::getOperations)
+                             .map(PathItem::readOperations)
                              .flatMap(Collection::stream)
                              .filter(operation -> hasEntity(operation, entity))
                              .collect(toList());
@@ -60,21 +64,25 @@ public class UsedByDefinitionsDocumentExtension extends DefinitionsDocumentExten
     }
 
     private static boolean hasEntityInRequest(final Operation operation, final String entity) {
-        return operation.getParameters()
-                        .stream()
-                        .filter(parameter -> parameter instanceof BodyParameter)
-                        .map(parameter -> (BodyParameter) parameter)
-                        .filter(bodyParameter -> bodyParameter.getSchema() != null)
-                        .filter(bodyParameter -> bodyParameter.getSchema() instanceof RefModel)
-                        .anyMatch(
-                                bodyParameter -> ((RefModel) bodyParameter.getSchema()).getSimpleRef().equals(entity));
-
+        return Optional.ofNullable(operation.getRequestBody())
+                       .map(RequestBody::getContent)
+                       .map(content -> content.values().stream())
+                       .flatMap(Stream::findFirst)
+                       .map(MediaType::getSchema)
+                       .filter(schema -> schema.get$ref() != null)
+                       .filter(schema -> RefUtils.computeSimpleRef(schema.get$ref()).equals(entity))
+                       .isPresent();
     }
 
     private static boolean hasEntityInResponse(final Operation operation, final String entity) {
         return operation.getResponses().values().stream()
-                        .filter(response -> response.getSchema() != null)
-                        .filter(response -> response.getSchema().getType().equals("ref"))
-                        .anyMatch(response -> ((RefProperty) response.getSchema()).getSimpleRef().equals(entity));
+                        .map(ApiResponse::getContent)
+                        .filter(Objects::nonNull)
+                        .flatMap(content -> content.values().stream())
+                        .findFirst()
+                        .map(MediaType::getSchema)
+                        .filter(schema -> schema.get$ref() != null)
+                        .filter(schema -> RefUtils.computeSimpleRef(schema.get$ref()).equals(entity))
+                        .isPresent();
     }
 }
