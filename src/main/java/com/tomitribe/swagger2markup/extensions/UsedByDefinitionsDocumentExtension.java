@@ -44,16 +44,20 @@ public class UsedByDefinitionsDocumentExtension extends DefinitionsDocumentExten
 
                 if (!usedBy.isEmpty()) {
                     context.getMarkupDocBuilder().sectionTitleLevel3("Used By");
-                    context.getMarkupDocBuilder()
-                           .unorderedList(usedBy.stream()
-                                                .filter(operation -> !operation.getTags().isEmpty())
-                                                .map(operation -> context.getMarkupDocBuilder()
-                                                                         .copy(false)
-                                                                         .crossReference("paths", operation.getTags().get(0) +
-                                                                                         "_resource",
-                                                                                         operation.getSummary())
-                                                                         .toString())
-                                                .collect(toList()));
+                    List<String> pathValues = usedBy.stream()
+                            .filter(operation -> operation.getTags() != null && !operation.getTags().isEmpty())
+                            .map(operation -> context.getMarkupDocBuilder()
+                                    .copy(false)
+                                    .crossReference("paths", operation.getTags().get(0) +
+                                                    "_resource",
+                                            operation.getSummary())
+                                    .toString())
+                            .collect(toList());
+                    if(pathValues.size() > 0){
+                        context.getMarkupDocBuilder()
+                                .unorderedList(pathValues);
+                    }
+
                 }
             }
         }

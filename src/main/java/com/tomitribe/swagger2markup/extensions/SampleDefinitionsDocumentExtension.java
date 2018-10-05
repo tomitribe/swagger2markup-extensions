@@ -89,7 +89,7 @@ public class SampleDefinitionsDocumentExtension extends DefinitionsDocumentExten
                                                     .map(Content::values)
                                                     .map(Collection::stream)
                                                     .flatMap(Stream::findFirst)
-                                                    .filter(mediaType -> mediaType.getSchema().get$ref() != null)
+                                                    .filter(mediaType -> mediaType.getSchema()  != null && mediaType.getSchema().get$ref() != null)
                                                     .filter(mediaType -> computeSimpleRef(
                                                             mediaType.getSchema().get$ref()).equals(entity))
                                                     .isPresent())
