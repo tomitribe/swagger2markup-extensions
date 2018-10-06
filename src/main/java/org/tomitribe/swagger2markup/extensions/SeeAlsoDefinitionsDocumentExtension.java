@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.tomitribe.swagger2markup.extensions;
+package org.tomitribe.swagger2markup.extensions;
 
 import io.github.swagger2markup.spi.DefinitionsDocumentExtension;
 import io.swagger.v3.oas.models.media.Schema;

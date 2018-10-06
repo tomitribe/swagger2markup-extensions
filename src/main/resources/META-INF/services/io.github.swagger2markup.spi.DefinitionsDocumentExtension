@@ -1,3 +1,3 @@
-com.tomitribe.swagger2markup.extensions.SampleDefinitionsDocumentExtension
-com.tomitribe.swagger2markup.extensions.UsedByDefinitionsDocumentExtension
-com.tomitribe.swagger2markup.extensions.SeeAlsoDefinitionsDocumentExtension
+org.tomitribe.swagger2markup.extensions.SampleDefinitionsDocumentExtension
+org.tomitribe.swagger2markup.extensions.UsedByDefinitionsDocumentExtension
+org.tomitribe.swagger2markup.extensions.SeeAlsoDefinitionsDocumentExtension
